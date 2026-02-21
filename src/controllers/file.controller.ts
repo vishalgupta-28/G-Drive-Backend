@@ -25,6 +25,17 @@ export class FileController {
         }
     }
 
+    async getFileMetadata(req: Request, res: Response, next: NextFunction) {
+        try {
+            const user = req.user as any;
+            const fileId = req.params.fileId as string;
+            const metadata = await this.fileService.getFileMetadata(user.id, fileId);
+            res.status(200).json(metadata);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async deleteFile(req: Request, res: Response, next: NextFunction) {
         try {
             const user = req.user as any;

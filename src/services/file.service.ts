@@ -157,6 +157,29 @@ export class FileService {
         }
     }
 
+    async getFileMetadata(userId: string, fileId: string) {
+        try {
+            const file = await this.fileRepository.findByIdAndUser(fileId, userId);
+            if (!file) throw new AppError('File not found', 404);
+
+            const blob = await this.blobRepository.findById(file.blob_id);
+            let thumbnail_url: string | null = null;
+            if (blob?.has_thumbnail) {
+                const thumbCommand = new GetObjectCommand({
+                    Bucket: Config.doBucket,
+                    Key: `thumbnails/${blob.id}.jpg`,
+                });
+                thumbnail_url = await getSignedUrl(s3Client, thumbCommand, { expiresIn: 3600 });
+            }
+
+            return { ...file, thumbnail_url };
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            logger.error({ err: error, userId, fileId }, 'Failed to get file metadata');
+            throw new AppError('Failed to retrieve file metadata', 500);
+        }
+    }
+
     async deleteFile(userId: string, fileId: string) {
         try {
             const file = await this.fileRepository.findByIdAndUser(fileId, userId);

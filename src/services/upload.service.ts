@@ -63,13 +63,14 @@ export class UploadService {
         }
     }
 
-    private mapMimeToEnum(mime: string): 'pdf' | 'txt' | 'doc' | 'jpg' | 'png' | 'mp3' | 'mp4' | 'other' {
+    private mapMimeToEnum(mime: string): 'pdf' | 'txt' | 'doc' | 'jpg' | 'png' | 'webp' | 'mp3' | 'mp4' | 'other' {
         const lower = mime.toLowerCase();
         if (lower.includes('pdf')) return 'pdf';
         if (lower.includes('text/plain')) return 'txt';
         if (lower.includes('word') || lower.includes('document')) return 'doc';
         if (lower.includes('jpeg') || lower.includes('jpg')) return 'jpg';
         if (lower.includes('png')) return 'png';
+        if (lower.includes('webp')) return 'webp';
         if (lower.includes('mp3') || lower.includes('audio')) return 'mp3';
         if (lower.includes('mp4') || lower.includes('video')) return 'mp4';
         return 'other';
@@ -116,7 +117,7 @@ export class UploadService {
             await this.uploadRepository.updateStatus(uploadId, 'completed');
 
             // Fire & Forget: Dispatch Thumbnail Job for renderable documents, video, and images
-            const thumbnailTypes = ['pdf', 'doc', 'mp4', 'jpg', 'png'];
+            const thumbnailTypes = ['pdf', 'doc', 'mp4', 'jpg', 'png', 'webp'];
             if (thumbnailTypes.includes(dbFileType)) {
                 rabbitMQService.publishThumbnailJob({
                     fileId: file.id,

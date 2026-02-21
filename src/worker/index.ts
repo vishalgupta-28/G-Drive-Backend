@@ -163,7 +163,7 @@ async function startWorker() {
                 } else if (job.type === 'pdf') {
                     console.log(`[Worker] Step 2: Extracting PDF thumbnail...`);
                     await extractPdfThumbnail(sourceFilePath, thumbFilePath);
-                } else if (job.type === 'jpg' || job.type === 'png' || job.type === 'image') {
+                } else if (job.type === 'jpg' || job.type === 'png' || job.type === 'webp' || job.type === 'image') {
                     console.log(`[Worker] Step 2: Extracting image thumbnail...`);
                     await extractImageThumbnail(sourceFilePath, thumbFilePath);
                 } else {

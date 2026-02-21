@@ -2,7 +2,7 @@ import { pgTable, uuid, varchar, text, timestamp, bigint, pgEnum, boolean } from
 import { relations } from 'drizzle-orm';
 
 export const uploadStatusEnum = pgEnum('upload_status', ['pending', 'completed', 'failed']);
-export const fileTypeEnum = pgEnum('file_type', ['pdf', 'txt', 'doc', 'jpg', 'png', 'mp3', 'mp4', 'other']);
+export const fileTypeEnum = pgEnum('file_type', ['pdf', 'txt', 'doc', 'jpg', 'png', 'webp', 'mp3', 'mp4', 'other']);
 
 export const usersTable = pgTable('users', {
     id: uuid('id').defaultRandom().primaryKey(),

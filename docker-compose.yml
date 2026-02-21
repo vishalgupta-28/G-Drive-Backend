@@ -55,9 +55,6 @@ services:
       - .env
     environment:
       - PORT=8000
-      - DATABASE_URL=postgres://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@db:5432/${POSTGRES_DB:-drive_clone}
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
     depends_on:
       db:
         condition: service_healthy
@@ -72,10 +69,6 @@ services:
     command: npm run worker
     env_file:
       - .env
-    environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@db:5432/${POSTGRES_DB:-drive_clone}
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
     depends_on:
       db:
         condition: service_healthy

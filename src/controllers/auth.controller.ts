@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service.js';
+import { Config } from '../config/config.js';
 
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
@@ -13,9 +14,8 @@ export class AuthController {
 
             const token = await this.authService.createSession(user);
 
-            // Adjust this URL to your frontend's deep link or callback receiver.
-            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-            res.redirect(`${frontendUrl}/auth/success?token=${token}`);
+            // Redirect to frontend after successful Google auth
+            res.redirect(`${Config.frontendUrl}/auth/success?token=${token}`);
         } catch (error) {
             next(error);
         }

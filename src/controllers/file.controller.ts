@@ -117,12 +117,50 @@ export class FileController {
         }
     }
 
+    async getShareStatus(req: Request, res: Response, next: NextFunction) {
+        try {
+            const user = req.user as any;
+            const fileId = req.params.fileId as string;
+            const result = await this.fileService.getShareStatus(user.id, fileId);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async revokeShareFile(req: Request, res: Response, next: NextFunction) {
         try {
             const user = req.user as any;
             const fileId = req.params.fileId as string;
             await this.fileService.revokeShareFile(user.id, fileId);
             res.status(200).json({ success: true });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getStarredFiles(req: Request, res: Response, next: NextFunction) {
+        try {
+            const user = req.user as any;
+            const files = await this.fileService.getStarredFiles(user.id);
+            res.status(200).json(files);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async toggleStar(req: Request, res: Response, next: NextFunction) {
+        try {
+            const user = req.user as any;
+            const fileId = req.params.fileId as string;
+            const { is_starred } = req.body;
+
+            if (typeof is_starred !== 'boolean') {
+                return res.status(400).json({ message: 'is_starred must be a boolean' });
+            }
+
+            const result = await this.fileService.toggleStar(user.id, fileId, is_starred);
+            res.status(200).json(result);
         } catch (error) {
             next(error);
         }

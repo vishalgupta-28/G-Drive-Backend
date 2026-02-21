@@ -9,7 +9,7 @@ export const usersTable = pgTable('users', {
     email: varchar('email', { length: 255 }).notNull().unique(),
     name: varchar('name', { length: 255 }).notNull(),
     profile_image: varchar('profile_image', { length: 512 }),
-    quota: bigint('quota', { mode: 'number' }).notNull().default(10737418240), // Default 10GB
+    quota: bigint('quota', { mode: 'number' }).notNull().default(2147483648), // Default 2GB
 });
 
 export const blobsTable = pgTable('blobs', {
@@ -35,6 +35,7 @@ export const foldersTable = pgTable('folders', {
     parent_id: uuid('parent_id'), // Self-referencing foreign key setup later in relations
     created_at: timestamp('created_at').defaultNow().notNull(),
     deleted_at: timestamp('deleted_at'),
+    is_starred: boolean('is_starred').default(false).notNull(),
 });
 
 export const filesTable = pgTable('files', {
@@ -47,6 +48,7 @@ export const filesTable = pgTable('files', {
     type: fileTypeEnum('type').notNull(),
     created_at: timestamp('created_at').defaultNow().notNull(),
     deleted_at: timestamp('deleted_at'),
+    is_starred: boolean('is_starred').default(false).notNull(),
 });
 
 export const fileShareTable = pgTable('file_share', {

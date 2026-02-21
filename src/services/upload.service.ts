@@ -10,15 +10,30 @@ import { rabbitMQService } from './rabbitmq.service.js';
 import { AppError } from '../utils/AppError.js';
 import { logger } from '../utils/logger.js';
 
+import { UserRepository } from '../repositories/user.repository.js';
+
 export class UploadService {
     constructor(
         private readonly uploadRepository: UploadRepository,
         private readonly blobRepository: BlobRepository,
-        private readonly fileRepository: FileRepository
+        private readonly fileRepository: FileRepository,
+        private readonly userRepository: UserRepository
     ) { }
 
     async createPresignedUrl(userId: string, fileName: string, fileType: string, fileSize: number) {
         try {
+            // Check quota usage
+            const user = await this.userRepository.findById(userId);
+            if (!user) throw new AppError('User not found', 404);
+
+            const usedStorage = await this.fileRepository.getUsedStorageByUser(userId);
+            const userQuota = user.quota;
+
+            if (usedStorage + fileSize > userQuota) {
+                logger.warn({ userId, usedStorage, fileSize, userQuota }, 'Upload rejected: Storage limit exceeded');
+                throw new AppError('Storage limit exceeded', 400);
+            }
+
             const s3Key = uuidv4();
             const command = new PutObjectCommand({
                 Bucket: Config.doBucket,

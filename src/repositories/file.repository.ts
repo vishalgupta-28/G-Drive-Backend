@@ -1,4 +1,4 @@
-import { eq, and, isNull, isNotNull, ilike, count, sum } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, ilike, count, sum, desc } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema/schema.js';
 import { logger } from '../utils/logger.js';
@@ -123,7 +123,7 @@ export class FileRepository {
                     eq(schema.filesTable.user_id, userId),
                     isNotNull(schema.filesTable.deleted_at)
                 )
-            );
+            ).orderBy(desc(schema.filesTable.created_at));
         } catch (error) {
             logger.error({ err: error, userId }, 'FileRepository.findTrashedByUser failed');
             throw error;
@@ -156,6 +156,32 @@ export class FileRepository {
         }
     }
 
+    async toggleStar(id: string, isStarred: boolean) {
+        try {
+            const result = await this.db.update(schema.filesTable).set({ is_starred: isStarred }).where(eq(schema.filesTable.id, id)).returning();
+            return result[0];
+        } catch (error) {
+            logger.error({ err: error, fileId: id, isStarred }, 'FileRepository.toggleStar failed');
+            throw error;
+        }
+    }
+
+    async findStarredByUser(userId: string) {
+        try {
+            return await this.db.select().from(schema.filesTable).where(
+                and(
+                    eq(schema.filesTable.user_id, userId),
+                    isNotNull(schema.filesTable.is_starred),
+                    eq(schema.filesTable.is_starred, true),
+                    isNull(schema.filesTable.deleted_at)
+                )
+            ).orderBy(desc(schema.filesTable.created_at));
+        } catch (error) {
+            logger.error({ err: error, userId }, 'FileRepository.findStarredByUser failed');
+            throw error;
+        }
+    }
+
     async searchByUser(userId: string, query: string, limit: number, offset: number) {
         try {
             const files = await this.db.select()
@@ -167,6 +193,7 @@ export class FileRepository {
                         isNull(schema.filesTable.deleted_at)
                     )
                 )
+                .orderBy(desc(schema.filesTable.created_at))
                 .limit(limit)
                 .offset(offset);
             return files;
@@ -180,7 +207,7 @@ export class FileRepository {
         try {
             return await this.db.select().from(schema.filesTable).where(
                 and(eq(schema.filesTable.user_id, userId), isNull(schema.filesTable.deleted_at))
-            );
+            ).orderBy(desc(schema.filesTable.created_at));
         } catch (error) {
             logger.error({ err: error, userId }, 'FileRepository.findByUser failed');
             throw error;
@@ -191,7 +218,7 @@ export class FileRepository {
         try {
             const allFiles = await this.db.select().from(schema.filesTable).where(
                 and(eq(schema.filesTable.user_id, userId), isNull(schema.filesTable.deleted_at))
-            );
+            ).orderBy(desc(schema.filesTable.created_at));
             if (folderId) {
                 return allFiles.filter(f => f.folder_id === folderId);
             }

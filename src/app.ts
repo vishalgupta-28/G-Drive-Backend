@@ -57,7 +57,7 @@ export async function createApp() {
 
     // Services
     const authService = new AuthService(userRepository, redis, fileRepository);
-    const uploadService = new UploadService(uploadRepository, blobRepository, fileRepository);
+    const uploadService = new UploadService(uploadRepository, blobRepository, fileRepository, userRepository);
     const fileService = new FileService(fileRepository, blobRepository, fileShareRepository);
     const folderService = new FolderService(folderRepository);
 

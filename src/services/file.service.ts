@@ -54,6 +54,33 @@ export class FileService {
         }
     }
 
+    async getShareStatus(userId: string, fileId: string) {
+        try {
+            const file = await this.fileRepository.findByIdAndUser(fileId, userId);
+            if (!file) throw new AppError('File not found', 404);
+
+            const db = this.fileRepository['db'];
+            const schema = await import('../db/schema/schema.js');
+            const { eq, and, gt } = await import('drizzle-orm');
+
+            const existingShares = await db.select().from(schema.fileShareTable).where(
+                and(
+                    eq(schema.fileShareTable.file_id, fileId),
+                    gt(schema.fileShareTable.expiry, Date.now())
+                )
+            );
+
+            if (existingShares.length > 0) {
+                return { isShared: true, shareUrl: `${Config.apiUrl}/api/files/shared/${existingShares[0].token}`, token: existingShares[0].token };
+            }
+            return { isShared: false, shareUrl: null, token: null };
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            logger.error({ err: error, userId, fileId }, 'Failed to get share status');
+            throw new AppError('Failed to get share status', 500);
+        }
+    }
+
     async revokeShareFile(userId: string, fileId: string) {
         try {
             const file = await this.fileRepository.findByIdAndUser(fileId, userId);
@@ -78,13 +105,21 @@ export class FileService {
             const blob = await this.blobRepository.findById(file.blob_id);
             if (!blob) throw new AppError('Shared file content missing', 404);
 
-            const command = new GetObjectCommand({
+            const previewCommand = new GetObjectCommand({
                 Bucket: Config.doBucket,
                 Key: blob.s3_key,
+                ResponseContentDisposition: `inline; filename="${encodeURIComponent(file.name)}"`,
+            });
+            const downloadCommand = new GetObjectCommand({
+                Bucket: Config.doBucket,
+                Key: blob.s3_key,
+                ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.name)}"`,
             });
 
-            const presignUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-            return { file, download_url: presignUrl };
+            const previewUrl = await getSignedUrl(s3Client, previewCommand, { expiresIn: 3600 });
+            const downloadUrl = await getSignedUrl(s3Client, downloadCommand, { expiresIn: 3600 });
+
+            return { file, download_url: downloadUrl, preview_url: previewUrl };
         } catch (error) {
             if (error instanceof AppError) throw error;
             logger.error({ err: error, token }, 'Failed to get shared file download URL');
@@ -100,13 +135,21 @@ export class FileService {
             const blob = await this.blobRepository.findById(file.blob_id);
             if (!blob) throw new AppError('Blob not found', 404);
 
-            const command = new GetObjectCommand({
+            const previewCommand = new GetObjectCommand({
                 Bucket: Config.doBucket,
                 Key: blob.s3_key,
+                ResponseContentDisposition: `inline; filename="${encodeURIComponent(file.name)}"`,
+            });
+            const downloadCommand = new GetObjectCommand({
+                Bucket: Config.doBucket,
+                Key: blob.s3_key,
+                ResponseContentDisposition: `attachment; filename="${encodeURIComponent(file.name)}"`,
             });
 
-            const presignUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
-            return { file, download_url: presignUrl };
+            const previewUrl = await getSignedUrl(s3Client, previewCommand, { expiresIn: 3600 });
+            const downloadUrl = await getSignedUrl(s3Client, downloadCommand, { expiresIn: 3600 });
+
+            return { file, download_url: downloadUrl, preview_url: previewUrl };
         } catch (error) {
             if (error instanceof AppError) throw error;
             logger.error({ err: error, userId, fileId }, 'Failed to get file download URL');
@@ -202,6 +245,46 @@ export class FileService {
         }
     }
 
+    async toggleStar(userId: string, fileId: string, isStarred: boolean) {
+        try {
+            const file = await this.fileRepository.findByIdAndUser(fileId, userId);
+            if (!file) throw new AppError('File not found', 404);
+
+            return await this.fileRepository.toggleStar(fileId, isStarred);
+        } catch (error) {
+            if (error instanceof AppError) throw error;
+            logger.error({ err: error, userId, fileId, isStarred }, 'Failed to toggle star on file');
+            throw new AppError('Failed to toggle star on file', 500);
+        }
+    }
+
+    async getStarredFiles(userId: string) {
+        try {
+            const files = await this.fileRepository.findStarredByUser(userId);
+
+            // Enrich with thumbnail URLs
+            const enriched = await Promise.all(files.map(async (file) => {
+                const blob = await this.blobRepository.findById(file.blob_id);
+                let thumbnail_url: string | null = null;
+
+                if (blob?.has_thumbnail) {
+                    const thumbCommand = new GetObjectCommand({
+                        Bucket: Config.doBucket,
+                        Key: `thumbnails/${blob.id}.jpg`,
+                    });
+                    thumbnail_url = await getSignedUrl(s3Client, thumbCommand, { expiresIn: 3600 });
+                }
+
+                return { ...file, thumbnail_url };
+            }));
+
+            return enriched;
+        } catch (error) {
+            logger.error({ err: error, userId }, 'Failed to get starred files');
+            throw new AppError('Failed to retrieve starred files', 500);
+        }
+    }
+
     async renameFile(userId: string, fileId: string, newName: string) {
         try {
             const file = await this.fileRepository.findByIdAndUser(fileId, userId);
@@ -217,7 +300,27 @@ export class FileService {
 
     async searchFiles(userId: string, queryString: string, offset: number, limit: number) {
         try {
-            return await this.fileRepository.searchByUser(userId, queryString, limit, offset);
+            const files = await this.fileRepository.searchByUser(userId, queryString, limit, offset);
+
+            // Enrich each file with a thumbnail_url if its blob has_thumbnail
+            const enriched = await Promise.all(files.map(async (file) => {
+                const blob = await this.blobRepository.findById(file.blob_id);
+                let thumbnail_url: string | null = null;
+                console.log("CHECKING BLOB FOR FILE: ", file.name, " HAS THUMBNAIL:", blob?.has_thumbnail)
+
+                if (blob?.has_thumbnail) {
+                    const thumbKey = `thumbnails/${blob.id}.jpg`;
+                    const thumbCommand = new GetObjectCommand({
+                        Bucket: Config.doBucket,
+                        Key: thumbKey,
+                    });
+                    thumbnail_url = await getSignedUrl(s3Client, thumbCommand, { expiresIn: 3600 });
+                }
+
+                return { ...file, thumbnail_url };
+            }));
+
+            return enriched;
         } catch (error) {
             logger.error({ err: error, userId, queryString }, 'Failed to search files');
             throw new AppError('Failed to search files', 500);

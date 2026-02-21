@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: drive_clone
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=postgres://myuser:mypassword@db:5432/drive_clone
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-super-secret-key}
+      - API_URL=http://localhost:8000
+      - DO_REGION=${DO_REGION:-blr1}
+      - DO_ENDPOINT=${DO_ENDPOINT}
+      - DO_ACCESS_KEY=${DO_ACCESS_KEY}
+      - DO_SECRET_KEY=${DO_SECRET_KEY}
+      - DO_BUCKET_NAME=${DO_BUCKET_NAME}
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+
+  worker:
+    build: .
+    command: npm run worker
+    environment:
+      - DATABASE_URL=postgres://myuser:mypassword@db:5432/drive_clone
+      - DO_REGION=${DO_REGION:-blr1}
+      - DO_ENDPOINT=${DO_ENDPOINT}
+      - DO_ACCESS_KEY=${DO_ACCESS_KEY}
+      - DO_SECRET_KEY=${DO_SECRET_KEY}
+      - DO_BUCKET_NAME=${DO_BUCKET_NAME}
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672" # AMQP protocol port
+      - "15672:15672" # Management UI port
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+volumes:
+  pgdata:

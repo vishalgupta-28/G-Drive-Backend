@@ -12,9 +12,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 COPY package*.json ./
+
+# System dependencies for thumbnail worker (ffmpeg, ghostscript, graphicsmagick)
 RUN apk add --no-cache ffmpeg ghostscript graphicsmagick
+
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
+COPY drizzle ./drizzle
 
-EXPOSE 3000
+EXPOSE 8000
 CMD ["npm", "start"]

@@ -1,70 +1,90 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: drive_clone
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
+      POSTGRES_DB: ${POSTGRES_DB:-drive_clone}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - PORT=8000
-      - DATABASE_URL=postgres://myuser:mypassword@db:5432/drive_clone
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - JWT_SECRET=${JWT_SECRET:-super-secret-key}
-      - API_URL=http://localhost:8000
-      - DO_REGION=${DO_REGION:-blr1}
-      - DO_ENDPOINT=${DO_ENDPOINT}
-      - DO_ACCESS_KEY=${DO_ACCESS_KEY}
-      - DO_SECRET_KEY=${DO_SECRET_KEY}
-      - DO_BUCKET_NAME=${DO_BUCKET_NAME}
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://rabbitmq:5672
-    depends_on:
-      - db
-      - redis
-      - rabbitmq
-
-  worker:
-    build: .
-    command: npm run worker
-    environment:
-      - DATABASE_URL=postgres://myuser:mypassword@db:5432/drive_clone
-      - DO_REGION=${DO_REGION:-blr1}
-      - DO_ENDPOINT=${DO_ENDPOINT}
-      - DO_ACCESS_KEY=${DO_ACCESS_KEY}
-      - DO_SECRET_KEY=${DO_SECRET_KEY}
-      - DO_BUCKET_NAME=${DO_BUCKET_NAME}
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_URL=amqp://rabbitmq:5672
-    depends_on:
-      - db
-      - redis
-      - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    restart: unless-stopped
     ports:
-      - "5672:5672" # AMQP protocol port
-      - "15672:15672" # Management UI port
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "check_running" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+      - DATABASE_URL=postgres://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@db:5432/${POSTGRES_DB:-drive_clone}
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: npm run worker
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:-myuser}:${POSTGRES_PASSWORD:-mypassword}@db:5432/${POSTGRES_DB:-drive_clone}
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   pgdata:
+  redisdata:
+  rabbitmqdata:

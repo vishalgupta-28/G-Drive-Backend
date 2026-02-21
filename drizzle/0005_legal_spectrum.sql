@@ -1,0 +1,1 @@
+ALTER TYPE "public"."file_type" ADD VALUE 'webp' BEFORE 'mp3';

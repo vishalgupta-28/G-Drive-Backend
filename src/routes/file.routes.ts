@@ -14,6 +14,7 @@ export function setupFileRoutes(fileController: FileController) {
     router.get('/search', fileController.searchFiles.bind(fileController));
     router.get('/starred', fileController.getStarredFiles.bind(fileController));
     router.get('/:fileId', fileController.getFile.bind(fileController));
+    router.get('/:fileId/metadata', fileController.getFileMetadata.bind(fileController));
     router.delete('/:fileId/permanent', fileController.permanentDeleteFile.bind(fileController));
     router.delete('/:fileId', fileController.deleteFile.bind(fileController));
     router.patch('/:fileId/rename', fileController.renameFile.bind(fileController));

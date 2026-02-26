@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema/schema.js';
 import { logger } from '../utils/logger.js';
@@ -18,7 +18,9 @@ export class UserRepository {
 
     async findByEmail(email: string) {
         try {
-            const users = await this.db.select().from(schema.usersTable).where(eq(schema.usersTable.email, email));
+            const users = await this.db.select().from(schema.usersTable).where(
+                sql`LOWER(${schema.usersTable.email}) = LOWER(${email})`
+            );
             return users[0] || null;
         } catch (error) {
             logger.error({ err: error, email }, 'UserRepository.findByEmail failed');

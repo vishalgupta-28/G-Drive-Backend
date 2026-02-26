@@ -1,6 +1,6 @@
 import { NodePgDatabase, drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from './schema/schema.js';
 import { logger } from '../utils/logger.js';
+import * as schema from './schema/schema.js';
 
 export async function connectToDB(databaseUrl: string): Promise<NodePgDatabase<typeof schema>> {
     try {

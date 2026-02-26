@@ -1,7 +1,7 @@
 import amqp from 'amqplib';
 import { Config } from '../config/config.js';
-import { logger } from '../utils/logger.js';
 import { AppError } from '../utils/AppError.js';
+import { logger } from '../utils/logger.js';
 
 class RabbitMQService {
     private connection: any = null;

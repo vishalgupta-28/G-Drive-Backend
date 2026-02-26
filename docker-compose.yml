@@ -11,16 +11,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-drive_clone}" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack:latest
     restart: unless-stopped
     ports:
       - "6379:6379"
+      - "8001:8001"
     volumes:
       - redisdata:/data
     healthcheck:

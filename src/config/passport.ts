@@ -1,13 +1,13 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Config } from './config.js';
 import { AuthService } from '../services/auth.service.js';
+import { Config } from './config.js';
 
 export function configurePassport(authService: AuthService) {
     passport.use(new GoogleStrategy({
         clientID: Config.googleClientId,
         clientSecret: Config.googleClientSecret,
-        callbackURL: `${Config.apiUrl}/api/auth/google/callback`,
+        callbackURL: Config.googleCallbackUrl,
     }, async (accessToken, refreshToken, profile, done) => {
         try {
             const email = profile.emails?.[0]?.value;
